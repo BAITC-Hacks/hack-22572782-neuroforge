@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Env / secrets
+.env
+
+# Runtime caches (generated, not source)
+cache/*.sqlite
+cache/*.json
+data/processed/*.npz
+data/processed/*.parquet
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
