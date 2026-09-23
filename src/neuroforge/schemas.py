@@ -35,6 +35,13 @@ class Query(BaseModel):
     budget_kzt: int
     duration_h: Optional[int] = None
     language: Optional[str] = None
+    brief: Optional[str] = None
+    """Свободное описание пожеланий заказчика. Единственный вход, с которым
+    семантическое сходство имеет смысл: структурные поля у всех выживших
+    кандидатов совпадают по определению (они прошли одни и те же фильтры),
+    поэтому сравнивать описания не с чем, кроме брифа. Если брифа нет —
+    семантическая фича отключается, а её вес перераспределяется между
+    остальными (см. scoring.py)."""
 
 
 class OutcomeType(str, Enum):
@@ -55,6 +62,8 @@ class Card(BaseModel):
     id: str
     name: str
     category: str
+    """Именно запрошенная категория, а не первая из profile.categories:
+    13 профилей в датасете мультикатегорийны (напр. Ресторан + Банкетный зал)."""
     city: str
     price_from_kzt: int
     is_synthetic: bool
@@ -63,15 +72,22 @@ class Card(BaseModel):
 
 
 class PipelineTrace(BaseModel):
-    """Промежуточные числа по стадиям — для прозрачности перед жюри."""
+    """Промежуточные числа по стадиям — для прозрачности перед жюри.
 
-    pool_city_category: int
-    after_busy_filter: int
-    after_budget_filter: int
-    after_format_filter: int
-    after_duration_filter: int
-    after_language_filter: int
+    Счётчики заданы словарями, а не фиксированными полями: набор фильтров
+    описан реестром в filters.py, и добавление нового фильтра не должно
+    требовать правки схемы.
+    """
+
+    pool_size: int
+    """Сколько профилей в городе и категории запроса — до остальных фильтров."""
+
+    stage_counts: dict[str, int] = Field(default_factory=dict)
+    """Воронка: причина фильтра -> сколько кандидатов осталось после него."""
+
     rejection_breakdown: dict[str, int] = Field(default_factory=dict)
+    """Причина -> сколько кандидатов отсеяно по ней (первая сработавшая)."""
+
     top_scores: list[float] = Field(default_factory=list)
 
 
@@ -80,5 +96,7 @@ class RecommendResponse(BaseModel):
     pool_size: int
     found_count: int
     message: Optional[str] = None
+    """Пользовательский текст для исходов NO_CATEGORY / NO_MATCH, а также
+    для случая, когда подходящих нашлось меньше трёх (требование ТЗ №4)."""
     cards: list[Card] = Field(default_factory=list)
     trace: PipelineTrace
