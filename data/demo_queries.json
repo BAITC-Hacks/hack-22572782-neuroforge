@@ -1,0 +1,22 @@
+[
+  {
+    "id": "dense", "title": "Ведущий на корпоратив", "expected_outcome": "FOUND",
+    "query": {"city": "Алматы", "date": "2026-10-13", "event_type": "корпоратив", "category": "Ведущий", "budget_kzt": 2000000, "brief": "Интеллигентный ведущий для делового вечера, с опытом больших мероприятий"}
+  },
+  {
+    "id": "date-change", "title": "Тот же запрос в декабре", "expected_outcome": "FOUND",
+    "query": {"city": "Алматы", "date": "2026-12-31", "event_type": "корпоратив", "category": "Ведущий", "budget_kzt": 2000000, "brief": "Интеллигентный ведущий для делового вечера, с опытом больших мероприятий"}
+  },
+  {
+    "id": "rare", "title": "Редкая категория · флорист", "expected_outcome": "FOUND",
+    "query": {"city": "Алматы", "date": "2026-11-07", "event_type": "свадьба", "category": "Флорист", "budget_kzt": 600000}
+  },
+  {
+    "id": "no-match", "title": "Никто не подходит", "expected_outcome": "NO_MATCH",
+    "query": {"city": "Алматы", "date": "2026-12-31", "event_type": "корпоратив", "category": "Банкетный зал", "budget_kzt": 200000}
+  },
+  {
+    "id": "no-category", "title": "Категории нет в городе", "expected_outcome": "NO_CATEGORY",
+    "query": {"city": "Астана", "date": "2026-11-14", "event_type": "корпоратив", "category": "Декоратор", "budget_kzt": 1000000}
+  }
+]

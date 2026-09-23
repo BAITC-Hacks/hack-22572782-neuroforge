@@ -32,7 +32,6 @@ def main() -> int:
         profiles,
         embedder,
         cache_path=cache_path,
-        model_name=settings.embedding_model,
     )
     elapsed = time.perf_counter() - started
 

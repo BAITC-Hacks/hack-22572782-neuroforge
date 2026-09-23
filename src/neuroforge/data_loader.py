@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 from neuroforge.config import settings
-from neuroforge.schemas import Profile
+from neuroforge.schemas import Profile, Query
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -26,7 +26,12 @@ def load_profiles() -> list[Profile]:
     из реальных профилей. Синтетические профили обязаны иметь synthetic=true
     (проверяется явно, чтобы источник был виден в демо через Card.is_synthetic).
     """
-    real_records = _read_jsonl(Path(settings.dataset_path))
+    source = Path(settings.dataset_path)
+    if not source.is_file():
+        raise FileNotFoundError(f"Датасет не найден: {source}")
+    real_records = _read_jsonl(source)
+    if not real_records:
+        raise ValueError(f"Датасет пуст: {source}")
     synthetic_records = _read_jsonl(Path(settings.synthetic_path))
 
     profiles = [Profile.model_validate(r) for r in real_records]
@@ -62,3 +67,22 @@ def known_event_formats(profiles: list[Profile]) -> set[str]:
 
 def known_languages(profiles: list[Profile]) -> set[str]:
     return {lang for p in profiles for lang in p.languages}
+
+
+def normalize_query(query: Query, profiles: list[Profile]) -> Query:
+    """Регистр и пробелы нормализуются по данным; неизвестные значения сохраняются.
+
+    Неизвестная категория должна дать NO_CATEGORY, а не ошибку схемы.
+    """
+    def canonical(value, values):
+        if value is None:
+            return None
+        lookup = {" ".join(v.casefold().split()): v for v in sorted(values)}
+        return lookup.get(" ".join(value.casefold().split()), value)
+
+    return query.model_copy(update={
+        "city": canonical(query.city, known_cities(profiles)),
+        "category": canonical(query.category, known_categories(profiles)),
+        "event_type": canonical(query.event_type, known_event_formats(profiles)),
+        "language": canonical(query.language, known_languages(profiles)),
+    })

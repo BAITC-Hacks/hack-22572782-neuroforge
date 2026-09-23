@@ -10,7 +10,11 @@ venv/
 
 # Runtime caches (generated, not source)
 cache/*.sqlite
+cache/*.sqlite-*
 cache/*.json
+.pytest_cache/
+build/
+dist/
 data/processed/*.npz
 data/processed/*.parquet
 

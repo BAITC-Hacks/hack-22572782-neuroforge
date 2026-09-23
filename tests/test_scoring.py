@@ -23,6 +23,10 @@ class FakeEmbedder:
 
     dim = 16
 
+    @property
+    def model_id(self) -> str:
+        return "fake-hash-16d"
+
     def encode(self, texts: list[str]) -> np.ndarray:
         vectors = []
         for text in texts:
@@ -176,10 +180,10 @@ def test_embedding_cache_roundtrip(tmp_path):
     embedder = FakeEmbedder()
     cache = tmp_path / "emb.npz"
 
-    fresh = build_description_index(profiles, embedder, cache_path=cache, model_name="fake")
+    fresh = build_description_index(profiles, embedder, cache_path=cache)
     assert cache.exists()
 
-    cached = build_description_index(profiles, embedder, cache_path=cache, model_name="fake")
+    cached = build_description_index(profiles, embedder, cache_path=cache)
 
     for pid in fresh:
         assert np.allclose(fresh[pid], cached[pid])
@@ -192,9 +196,34 @@ def test_embedding_cache_invalidates_on_changed_description(tmp_path):
     embedder = FakeEmbedder()
 
     original = [make_profile("HK-001", description="старое описание")]
-    before = build_description_index(original, embedder, cache_path=cache, model_name="fake")
+    before = build_description_index(original, embedder, cache_path=cache)
 
     changed = [make_profile("HK-001", description="новое описание")]
-    after = build_description_index(changed, embedder, cache_path=cache, model_name="fake")
+    after = build_description_index(changed, embedder, cache_path=cache)
 
     assert not np.allclose(before["HK-001"], after["HK-001"])
+
+
+class OtherFakeEmbedder(FakeEmbedder):
+    """Другой провайдер с другой размерностью — имитирует подмену модели."""
+
+    dim = 8
+
+    @property
+    def model_id(self) -> str:
+        return "fake-hash-8d"
+
+
+def test_cache_invalidates_when_embedder_changes(tmp_path):
+    """Регрессия: кэш подписывался именем модели из конфига, которое
+    передавалось отдельно от эмбеддера. Подмена провайдера при неизменной
+    настройке возвращала векторы чужой модели — и падала на несовпадении
+    размерностей уже внутри скоринга."""
+    profiles = [make_profile("HK-001")]
+    cache = tmp_path / "emb.npz"
+
+    first = build_description_index(profiles, FakeEmbedder(), cache_path=cache)
+    second = build_description_index(profiles, OtherFakeEmbedder(), cache_path=cache)
+
+    assert len(first["HK-001"]) == 16
+    assert len(second["HK-001"]) == 8
