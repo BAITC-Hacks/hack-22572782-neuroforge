@@ -34,8 +34,19 @@ function showResponse(data) {
       <div class="card-bottom"><span class="tag ${card.is_synthetic ? 'synthetic':''}">${card.is_synthetic ? 'Синтетический профиль':'Профиль исходного каталога'}</span><span>${escape(card.id)}</span><span>Цитата — сведения из профиля</span></div></article>`).join('');
   }
   const labels = {busy_date:'После проверки даты',budget:'После проверки бюджета',format:'После проверки формата',duration:'После проверки длительности',language:'После проверки языка'};
+  const sourceLabels = {llm:'Акценты выбрала LLM',cache:'Проверенный выбор из кэша',facts:'Факты профиля без LLM',timeout:'Факты профиля: таймаут LLM',unavailable:'Факты профиля: API недоступен',invalid_response:'Факты профиля: ответ LLM отклонён',error:'Факты профиля: ошибка объяснения'};
   document.querySelector('#trace-content').innerHTML = `<div class="trace-row"><span>В городе и категории</span><strong>${data.pool_size}</strong></div>` + Object.entries(data.trace.stage_counts).map(([key,count]) => `<div class="trace-row"><span>${escape(labels[key] || key)}</span><strong>${count}</strong></div>`).join('') + data.cards.map(card => `<div class="trace-row"><span>${escape(card.name)} · балл ранжирования</span><strong>${card.score.toFixed(3)}</strong></div>`).join('');
   trace.hidden = false;
+  for (const card of data.cards) {
+    const row = document.createElement('div');
+    row.className = 'trace-row';
+    const name = document.createElement('span');
+    name.textContent = card.name;
+    const source = document.createElement('span');
+    source.textContent = sourceLabels[data.trace.explanation_sources?.[card.id]] || 'Источник не указан';
+    row.append(name,source);
+    document.querySelector('#trace-content').append(row);
+  }
 }
 async function search(event) {
   event?.preventDefault();

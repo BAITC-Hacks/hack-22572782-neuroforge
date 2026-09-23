@@ -100,6 +100,7 @@ class PipelineTrace(BaseModel):
 
     top_scores: list[float] = Field(default_factory=list)
     feature_values: dict[str, dict[str, float]] = Field(default_factory=dict)
+    explanation_sources: dict[str, str] = Field(default_factory=dict)
 
 
 class RecommendResponse(BaseModel):

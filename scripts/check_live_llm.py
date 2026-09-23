@@ -3,6 +3,7 @@
 Проверяет настоящий ответ и разрешённые ID фактов. Успешный fallback не
 считается успешным вызовом модели. Ключи и содержимое ошибок не выводятся.
 """
+import argparse
 import json
 import time
 from pathlib import Path
@@ -15,7 +16,12 @@ from neuroforge.schemas import Query
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--provider', help='Проверить только провайдера с указанным именем')
+    args = parser.parse_args()
     providers = LLMClient().available_providers()
+    if args.provider:
+        providers = [p for p in providers if p.name == args.provider]
     if not providers:
         print('Нет настроенных API-ключей; живые вызовы не выполнены.')
         return 1

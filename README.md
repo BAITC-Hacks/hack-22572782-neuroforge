@@ -6,31 +6,43 @@
 
 ## Быстрый запуск
 
-Запускайте команды из корня репозитория. Нужен Python 3.11+; проверенное
-окружение — Python 3.13 на macOS. Node.js и отдельная сборка интерфейса не нужны.
+Основной вариант для жюри — Python 3.13 и uv. Команды одинаковы на macOS,
+Windows и Linux. Node.js, GPU, API-ключи и отдельная сборка интерфейса не нужны.
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
-python scripts/build_embeddings.py
-NEUROFORGE_LLM_ENABLED=false python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
+git clone https://github.com/BAITC-Hacks/hack-22572782-neuroforge.git
+cd hack-22572782-neuroforge
+python -m pip install uv==0.11.7
+uv run --frozen --extra dev python run.py
 ```
 
+Если команда `python` отсутствует, используйте `python3` (macOS/Linux) или
+`py -3.13` (Windows) для установки uv. Если uv не оказался в PATH, команды
+можно запускать как `python -m uv ...`. Файл `.python-version` указывает Python 3.13;
+uv при необходимости загрузит его автоматически.
+
 Откройте http://127.0.0.1:8000. Документация HTTP API — http://127.0.0.1:8000/docs.
+По умолчанию `run.py` отключает внешние LLM даже при наличии ключей.
+Порт занят? Добавьте `--port 8001` в конец команды.
 
 Первый запуск загрузит мультиязычную модель sentence-transformers из Hugging Face.
 Для этого нужен интернет и место под модель; холодный запуск не входит во время
 ответа на запрос. Сервис прогревает модель до готовности HTTP API.
-После скачивания можно запускать без сети:
+Дождитесь строки `Application startup complete`. После предварительной установки
+зависимостей и скачивания модели интернет не нужен для основного сценария.
+При проверке чистой установки первая загрузка и прогрев заняли около 2,5 минут;
+последующие запросы с брифом — менее 0,5 секунды. Скорость загрузки зависит от сети.
 
-```bash
-HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 NEUROFORGE_LLM_ENABLED=false python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
-```
+`uv.lock` фиксирует разрешённые версии и хэши пакетов. На Linux/Windows выбран
+CPU-вариант PyTorch из официального индекса. Конфигурация основана на
+[документации uv для PyTorch](https://docs.astral.sh/uv/guides/integration/pytorch/).
+Проверка Linux настроена в GitHub Actions; Windows отдельно не проверялся.
 
-Для повторения зафиксированных версий на Python 3.13 используйте
-`python -m pip install -c constraints-demo.txt -e ".[dev]"`.
-Совместимость этого снимка с другими версиями Python и ОС отдельно не проверена.
+Альтернатива без uv: создайте окружение Python 3.13, активируйте его и выполните
+`python -m pip install -c constraints-demo.txt -e ".[dev]"`, затем `python run.py`.
+Этот снимок pip проверялся на macOS; для других ОС используйте основной вариант с uv.
+
+Публичный deployment не заявлен: адрес 127.0.0.1 открывается на машине, где запущен сервер.
 
 ## Что показать жюри
 
@@ -52,9 +64,14 @@ HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 NEUROFORGE_LLM_ENABLED=false python -m u
 Проверяемый прогон тех же сценариев с настоящей моделью, без внешних LLM:
 
 ```bash
-python scripts/run_demo_queries.py
-python -m pytest -q
+uv run --frozen --extra dev python run.py --check
 ```
+
+Команда запускает все автономные тесты и пять сценариев на настоящей модели.
+При ошибке возвращает ненулевой код. Ключи и внешние платные API не используются.
+Только быстрые тесты: `uv run --frozen --extra dev python -m pytest -q`.
+Короткий сценарий защиты: [docs/demo.md](docs/demo.md).
+Подтверждённые проверки и ограничения: [docs/validation.md](docs/validation.md).
 
 Демо-скрипт проверяет ожидаемые исходы, повторяемость порядка, смену даты и
 ориентир 10 секунд, возвращая ненулевой код при нарушении.
@@ -74,15 +91,21 @@ python -m pytest -q
 
 Без ключей всё работает на тех же данных и локальной модели. Чтобы включить
 LLM, скопируйте `.env.example` в `.env`, заполните `OPENAI_API_KEY` и/или
-`NVIDIA_API_KEY`, затем запустите сервис без `NEUROFORGE_LLM_ENABLED=false`.
+`NVIDIA_API_KEY`, затем запустите `uv run --frozen python run.py --llm`.
 OpenAI используется первым, NVIDIA — следующим при отказе.
 Проверить этот режим можно командой `python scripts/run_demo_queries.py --llm`;
 она делает внешние API-вызовы и может расходовать кредиты.
 
 Объяснения обрабатываются параллельно. Общий бюджет ожидания LLM по умолчанию
-3 секунды; ошибки, невалидные ответы и таймауты приводят к шаблону.
+5 секунд; ошибки, невалидные ответы и таймауты приводят к шаблону.
 SQLite-кэш хранит только проверенный выбор фактов и учитывает промпт и модели.
 Живые провайдеры не входят в автономный тестовый прогон.
+
+Для одиночной проверки без кэша используйте
+`python scripts/check_live_llm.py --provider openai` или `--provider nvidia`.
+Эта проверка требует настоящий валидный ответ: fallback не считается успехом.
+В `trace.explanation_sources` видно, получен ли выбор фактов от LLM (`llm`),
+из кэша (`cache`) или использованы факты без LLM/при ошибке.
 
 ## API
 

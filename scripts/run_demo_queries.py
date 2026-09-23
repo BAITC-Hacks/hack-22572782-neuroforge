@@ -36,6 +36,8 @@ def main() -> int:
             failed |= not valid
             outputs[scenario['id']] = ids
             print(f'\n{"PASS" if valid else "FAIL"} {scenario["title"]}: {response.outcome.value}, {elapsed:.3f} с; порядок стабилен: {stable}')
+            if args.llm:
+                print('Источники объяснений:', response.trace.explanation_sources)
             if response.message:
                 print(response.message)
             for card in response.cards:

@@ -74,8 +74,8 @@ class Settings(BaseSettings):
         ),
     ]
 
-    llm_timeout_s: float = Field(default=2.0, gt=0, le=5)
-    llm_total_timeout_s: float = Field(default=3.0, gt=0, le=6)
+    llm_timeout_s: float = Field(default=4.0, gt=0, le=5)
+    llm_total_timeout_s: float = Field(default=5.0, gt=0, le=6)
     """Общий бюджет ожидания объяснений; после него используются шаблоны."""
 
     llm_temperature: float = 0.0

@@ -151,7 +151,8 @@ class Recommender:
         )
 
         facts = [self._build_facts(c.profile, query, funnel, [r.profile for r in ranked]) for c in ranked]
-        explanations = self._explain_all(facts)
+        explanation_results = self._explain_all(facts)
+        explanations = [text for text, _ in explanation_results]
         cards = [
             Card(
                 id=c.profile.id,
@@ -184,6 +185,7 @@ class Recommender:
 
         trace = funnel.to_trace([c.score for c in ranked])
         trace.feature_values = {c.profile.id: c.feature_values for c in ranked}
+        trace.explanation_sources = {c.profile.id: source for c, (_, source) in zip(ranked, explanation_results)}
 
         return RecommendResponse(
             outcome=OutcomeType.FOUND,
@@ -215,14 +217,14 @@ class Recommender:
             matched_sentence=matched_sentence,
         )
 
-    def _explain_all(self, facts: list[ExplanationFacts]) -> list[str]:
+    def _explain_all(self, facts: list[ExplanationFacts]) -> list[tuple[str, str]]:
         """Объяснения для всех карточек.
 
         Вызовы идут параллельно: три последовательных обращения к LLM
         складывались бы в тройной таймаут и выносили ответ за лимит ТЗ.
         """
         if not self.llm:
-            return [render_explanation(f) for f in facts]
+            return [(render_explanation(f), "facts") for f in facts]
 
         futures = [self._executor.submit(self._explain_one, f) for f in facts]
         done, pending = wait(futures, timeout=settings.llm_total_timeout_s)
@@ -231,16 +233,16 @@ class Recommender:
         texts = []
         for f, future in zip(facts, futures):
             try:
-                texts.append(future.result() if future in done else render_explanation(f))
+                texts.append(future.result() if future in done else (render_explanation(f), "timeout"))
             except Exception:
                 logger.warning("Объяснение недоступно; используем факты профиля")
-                texts.append(render_explanation(f))
+                texts.append((render_explanation(f), "error"))
         return texts
 
     def close(self) -> None:
         self._executor.shutdown(wait=False, cancel_futures=True)
 
-    def _explain_one(self, facts: ExplanationFacts) -> str:
+    def _explain_one(self, facts: ExplanationFacts) -> tuple[str, str]:
         """Проверенный выбор фактов от LLM либо штатный порядок фактов."""
         system, user = build_llm_messages(facts)
 
@@ -253,18 +255,18 @@ class Recommender:
                 cached = self.cache.get(key)
                 selected = parse_fact_selection(cached, facts) if cached else None
                 if selected is not None:
-                    return render_explanation(facts, selected)
+                    return render_explanation(facts, selected), "cache"
             except (OSError, sqlite3.Error):
                 logger.warning("Чтение кэша объяснений недоступно")
 
         text = self.llm.complete(system, user)
         selected = parse_fact_selection(text, facts) if text else None
         if selected is None:
-            return render_explanation(facts)
+            return render_explanation(facts), "invalid_response" if text else "unavailable"
 
         if self.cache and key:
             try:
                 self.cache.put(key, text)
             except (OSError, sqlite3.Error):
                 logger.warning("Запись кэша объяснений недоступна")
-        return render_explanation(facts, selected)
+        return render_explanation(facts, selected), "llm"

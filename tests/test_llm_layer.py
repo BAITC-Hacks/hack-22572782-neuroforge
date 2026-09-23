@@ -110,6 +110,7 @@ def test_llm_selects_verified_facts_when_available(recommender, tmp_path):
     response = recommender.recommend(_query())
 
     assert all('принимает формат «корпоратив»' in c.explanation for c in response.cards)
+    assert set(response.trace.explanation_sources.values()) == {'llm'}
     assert all(c.evidence_quote.rstrip('.') in c.explanation for c in response.cards)
 
 
@@ -137,6 +138,8 @@ def test_cache_prevents_repeat_calls(recommender, tmp_path):
     second = recommender.recommend(_query())
 
     assert fake.calls == calls_after_first
+    assert set(first.trace.explanation_sources.values()) == {'llm'}
+    assert set(second.trace.explanation_sources.values()) == {'cache'}
     assert [c.explanation for c in first.cards] == [c.explanation for c in second.cards]
 
 

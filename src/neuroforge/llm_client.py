@@ -118,8 +118,9 @@ class LLMClient:
                 logger.warning("Провайдер %s вернул пустой текст", provider.name)
             except Exception as exc:
                 logger.warning(
-                    "Провайдер %s недоступен (%s), пробуем следующий",
+                    "Провайдер %s недоступен (%s, HTTP %s), пробуем следующий",
                     provider.name,
                     type(exc).__name__,
+                    getattr(exc, "status_code", "нет ответа"),
                 )
         return None
