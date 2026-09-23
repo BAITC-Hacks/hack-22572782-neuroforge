@@ -10,12 +10,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ScoringWeights(BaseSettings):
-    """Веса компонентов детерминированного скоринга. Сумма не обязана быть 1.0,
-    но так проще интерпретировать итоговый score."""
+    """Веса компонентов детерминированного скоринга.
+
+    Имя поля обязано совпадать с именем фичи в scoring.SCORING_FEATURES —
+    так реестр фич остаётся декларативным. Сумма не обязана быть 1.0:
+    неприменимые к запросу фичи выбывают, а веса перенормируются.
+    """
 
     semantic_similarity: float = 0.55
-    budget_headroom: float = 0.15
-    duration_margin: float = 0.15
+    budget_headroom: float = 0.10
+    """Намеренно мал: price_from_kzt — цена «от», дешевле не значит лучше.
+    Запас по бюджету идёт в текст объяснения, а не в преимущество рейтинга."""
+
+    duration_margin: float = 0.20
     language_breadth: float = 0.15
 
 
