@@ -16,11 +16,16 @@
 | NVIDIA, одиночный запрос | AuthenticationError; нужна проверка ключа/активации |
 | Полный прогон с внешними API | Пока не подтверждён |
 | Визуальный осмотр браузера | Не выполнен: нет разрешения Computer Use |
+| GitHub Actions на Linux | Задача не стартовала: GitHub сообщил «account is locked due to a billing issue» |
 
 Воспроизводимый запуск: `uv run --frozen --extra dev python run.py`.
 Полная автономная проверка: `uv run --frozen --extra dev python run.py --check`.
 `uv.lock` фиксирует зависимости; Linux/Windows используют CPU-вариант PyTorch.
-CI на GitHub проверяет Linux без API-ключей и без скачивания модели в тестах.
+Workflow для Linux настроен без API-ключей и без скачивания модели в тестах.
+Первый запуск остановлен инфраструктурой до выполнения шагов:
+https://github.com/BAITC-Hacks/hack-22572782-neuroforge/actions/runs/35860191121
+Это не подтверждает прохождение тестов на Linux; нужно снять billing-блокировку
+со стороны владельца GitHub-аккаунта/организации и повторить CI.
 
 Первый вызов OpenAI с лимитом 2 секунды завершился APITimeoutError.
 После живой проверки значения по умолчанию увеличены до 4 секунд на провайдера
